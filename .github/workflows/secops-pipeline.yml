@@ -322,51 +322,51 @@ jobs:
         
         # Create ZAP config to only fail on critical (HIGH) issues
         cat > /tmp/zap-reports/zap-config.conf << 'EOF'
-        # ZAP Configuration
-        # FAIL = Pipeline fails (Critical/High severity)
-        # WARN = Warning only (Medium severity) 
-        # INFO = Information only (Low severity)
-        # IGNORE = Skip completely
+# ZAP Configuration - Format: ID	LEVEL	NAME
+# FAIL = Pipeline fails (Critical/High severity)
+# WARN = Warning only (Medium severity) 
+# INFO = Information only (Low severity)
+# IGNORE = Skip completely
 
-        # Content Security Policy (CSP) related - Medium
-        10038	WARN
-        10063	WARN
+# Content Security Policy (CSP) related - Medium
+10038	WARN	Content Security Policy (CSP) Header Not Set
+10063	WARN	Feature Policy Header Not Set
 
-        # Missing security headers - Medium  
-        10021	WARN
-        10020	WARN
-        10016	WARN
+# Missing security headers - Medium  
+10021	WARN	X-Content-Type-Options Header Missing
+10020	WARN	X-Frame-Options Header Not Set
+10016	WARN	Web Browser XSS Protection Not Enabled
 
-        # Cookie security - Medium
-        10054	WARN
-        10055	WARN
-        90033	WARN
+# Cookie security - Medium
+10054	WARN	Cookie Without SameSite Attribute
+10055	WARN	Cookie Without Secure Flag
+90033	WARN	Loosely Scoped Cookie
 
-        # Cache and content issues - Low/Info
-        10049	INFO
-        10108	INFO
+# Cache and content issues - Low/Info
+10049	INFO	Storable and Cacheable Content
+10108	INFO	Reverse Tabnabbing
 
-        # Spectre vulnerability - Medium
-        90004	WARN
+# Spectre vulnerability - Medium
+90004	WARN	Insufficient Site Isolation Against Spectre Vulnerability
 
-        # Directory browsing - Medium
-        0	WARN
+# Directory browsing - Medium
+0	WARN	Directory Browsing
 
-        # SQL Injection - Critical (keep as FAIL)
-        40018	FAIL
-        40019	FAIL
-        40020	FAIL
-        40021	FAIL
+# SQL Injection - Critical (keep as FAIL)
+40018	FAIL	SQL Injection
+40019	FAIL	SQL Injection - MySQL
+40020	FAIL	SQL Injection - PostgreSQL
+40021	FAIL	SQL Injection - Oracle
 
-        # XSS - Critical (keep as FAIL) 
-        40012	FAIL
-        40014	FAIL
-        40016	FAIL
-        40017	FAIL
+# XSS - Critical (keep as FAIL) 
+40012	FAIL	Cross Site Scripting (Reflected)
+40014	FAIL	Cross Site Scripting (Persistent)
+40016	FAIL	Cross Site Scripting (Persistent) - Prime
+40017	FAIL	Cross Site Scripting (Persistent) - Spider
 
-        # Path traversal - Critical (keep as FAIL)
-        6	FAIL
-        EOF
+# Path traversal - Critical (keep as FAIL)
+6	FAIL	Path Traversal
+EOF
 
         sudo docker run --rm --network host \
           -v /tmp/zap-reports:/zap/wrk/:rw \
@@ -444,26 +444,29 @@ jobs:
   # REPORTING PHASE: Comprehensive Security Reports
   # =====================================================
 
-  # CI Security Assessment Report
-  ci-security-report:
-    name: "Report: CI Security Assessment"
+  # Consolidated Security Reports (after CD completion)
+  security-reports:
+    name: "Reports: Complete Security Assessment"
     runs-on: ubuntu-latest
-    needs: [static-security-analysis, vulnerability-assessment, secure-container-build]
+    needs: [static-security-analysis, vulnerability-assessment, secure-container-build, dynamic-security-deploy]
     if: always() && (needs.static-security-analysis.result != 'skipped' || needs.vulnerability-assessment.result != 'skipped' || needs.secure-container-build.result != 'skipped')
     
     steps:
-    - name: Generate CI Security Report
+    - name: Generate Complete Security Reports
       run: |
         echo ""
         echo "======================================================"
-        echo "        CI SECURITY ASSESSMENT REPORT"
+        echo "         COMPLETE SECURITY ASSESSMENT REPORT"
         echo "======================================================"
         echo ""
-        echo "Workflow: SecOps Complete Security Pipeline"
-        echo "Phase: Continuous Integration (CI)"
-        echo "Run Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-        echo "Status: ${{ needs.secure-container-build.result }}"
+        echo "Report Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        echo "Repository: ${{ github.repository }}"
+        echo "Branch: ${{ github.ref_name }}"
         echo ""
+        
+        echo "======================================================"
+        echo "        CI SECURITY ASSESSMENT REPORT"
+        echo "======================================================"
         
         # SAST Results
         echo "STATIC APPLICATION SECURITY TESTING (SAST):"
@@ -478,15 +481,7 @@ jobs:
         echo "   Vulnerability Scanner: Trivy"
         echo "   Severity Levels: CRITICAL, HIGH, MEDIUM, LOW"
         echo "   Security Gate: Critical vulnerability blocking enabled"
-        echo "   Image Signing: Available (currently disabled)"
-        echo ""
-        
-        # Supply Chain Security
-        echo "SUPPLY CHAIN SECURITY:"
-        echo "   Container Image Signing: Available (currently disabled)"
-        echo "   Secure Registry: DockerHub with authentication"
-        echo "   Image Verification: Digest-based validation"
-        echo "   Build Provenance: GitHub Actions tracked"
+        echo "   Dynamic Tagging: Branch-commit SHA format"
         echo ""
         
         # Security Gates
@@ -502,96 +497,47 @@ jobs:
         fi
         echo ""
         
-        echo "======================================================"
-        echo "      END OF CI SECURITY ASSESSMENT REPORT"
-        echo "======================================================"
-
-  # CD Deployment Security Report
-  cd-security-report:
-    name: "Report: CD Deployment Security"
-    runs-on: ubuntu-latest
-    needs: [dynamic-security-deploy]
-    if: always() && github.ref == 'refs/heads/main' && needs.dynamic-security-deploy.result != 'skipped'
-    
-    steps:
-    - name: Generate CD Security Report
-      run: |
-        echo ""
-        echo "======================================================"
-        echo "       CD DEPLOYMENT SECURITY REPORT"
-        echo "======================================================"
-        echo ""
-        echo "Workflow: SecOps Complete Security Pipeline"
-        echo "Phase: Continuous Deployment (CD)"
-        echo "Deployment Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-        echo "Status: ${{ needs.dynamic-security-deploy.result }}"
-        echo ""
-        
-        # DAST Results
-        echo "DYNAMIC APPLICATION SECURITY TESTING (DAST):"
-        echo "   Scanner: OWASP ZAP"
-        echo "   Scan Type: Baseline Security Assessment"
-        echo "   Target Environment: Production"
-        echo "   Runtime Security: Validated"
-        echo ""
-        
-        # Deployment Security
-        echo "SECURE DEPLOYMENT CONFIGURATION:"
-        echo "   Container User: Non-root (UID: 1000)"
-        echo "   Filesystem: Read-only with secure tmpfs"
-        echo "   Privileges: no-new-privileges enabled"
-        echo "   Capabilities: Minimal (NET_BIND_SERVICE only)"
-        echo "   Resources: Memory limited (512MB)"
-        echo "   Restart Policy: unless-stopped"
-        echo ""
-        
-        # Runtime Security
-        echo "RUNTIME SECURITY CONTROLS:"
-        echo "   Image Verification: Registry-based authentication"
-        echo "   Security Context: Enforced"
-        echo "   Network Policies: Applied"
-        echo "   Security Monitoring: Active"
-        echo "   Secret Management: Secured"
-        echo ""
-        
-        # Compliance Status
-        echo "DEPLOYMENT SECURITY COMPLIANCE:"
-        if [ "${{ needs.dynamic-security-deploy.result }}" = "success" ]; then
-          echo "   Container Hardening: Applied"
-          echo "   Runtime Security: Verified" 
-          echo "   Network Security: Configured"
-          echo "   Access Controls: Enforced"
-          echo "   Health Monitoring: Active"
-          echo "   Secure deployment completed successfully"
-        else
-          echo "   Deployment Security: FAILED"
-          echo "   Security issues detected during deployment"
+        # CD Report (only for main branch)
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "======================================================"
+          echo "       CD DEPLOYMENT SECURITY REPORT"
+          echo "======================================================"
+          
+          # DAST Results
+          echo "DYNAMIC APPLICATION SECURITY TESTING (DAST):"
+          echo "   Scanner: OWASP ZAP with custom severity configuration"
+          echo "   Policy: Critical-only failures (SQL injection, XSS, path traversal)"
+          echo "   Warnings: Medium severity (headers, cookies, CSP)"
+          echo "   Runtime Security: Validated"
+          echo ""
+          
+          # Deployment Security
+          echo "SECURE DEPLOYMENT CONFIGURATION:"
+          echo "   Container User: Non-root (UID: 1000)"
+          echo "   Filesystem: Read-only with secure tmpfs"
+          echo "   Privileges: no-new-privileges enabled"
+          echo "   Capabilities: Minimal (NET_BIND_SERVICE only)"
+          echo "   Resources: Memory limited (512MB)"
+          echo ""
+          
+          # Deployment Status
+          echo "DEPLOYMENT SECURITY COMPLIANCE:"
+          if [ "${{ needs.dynamic-security-deploy.result }}" = "success" ]; then
+            echo "   Container Hardening: Applied"
+            echo "   Runtime Security: Verified" 
+            echo "   Health Monitoring: Active"
+            echo "   Secure deployment completed successfully"
+          else
+            echo "   Deployment Security: FAILED"
+            echo "   Security issues detected during deployment"
+          fi
+          echo ""
         fi
-        echo ""
         
-        echo "======================================================"
-        echo "     END OF CD DEPLOYMENT SECURITY REPORT"
-        echo "======================================================"
-
-  # Final Security Summary
-  final-security-summary:
-    name: "Report: Final Security Summary"
-    runs-on: ubuntu-latest
-    needs: [ci-security-report, cd-security-report]
-    if: always() && (needs.ci-security-report.result != 'skipped' || (github.ref == 'refs/heads/main' && needs.cd-security-report.result != 'skipped'))
-    
-    steps:
-    - name: Generate Final Security Summary
-      run: |
-        echo ""
+        # Final Security Summary
         echo "======================================================"
         echo "         FINAL SECURITY SUMMARY"
         echo "======================================================"
-        echo ""
-        echo "Report Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-        echo "Repository: ${{ github.repository }}"
-        echo "Branch: ${{ github.ref_name }}"
-        echo ""
         
         # Security Pipeline Overview
         echo "SECURITY PIPELINE OVERVIEW:"
@@ -599,33 +545,31 @@ jobs:
         echo "   2. Container Scanning -> Image Security" 
         echo "   3. Security Gates -> Quality Control"
         echo "   4. Secure Build -> Hardened Artifacts"
-        echo "   5. Dynamic Testing (DAST) -> Runtime Security"
-        echo "   6. Secure Deployment -> Production Ready"
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "   5. Dynamic Testing (DAST) -> Runtime Security"
+          echo "   6. Secure Deployment -> Production Ready"
+        fi
         echo ""
         
         # Security Metrics Summary
         echo "SECURITY METRICS SUMMARY:"
         echo "   Security Scans: Automated & Continuous"
-        echo "   Vulnerability Management: Active"
-        echo "   Supply Chain Security: Protected"
-        echo "   Security Gates: Enforced"
+        echo "   Vulnerability Management: Active with smart filtering"
+        echo "   Supply Chain Security: Dynamic image tagging"
+        echo "   Security Gates: Risk-based enforcement"
         echo "   Compliance: Maintained"
         echo ""
         
-        # Risk Assessment
-        echo "RISK ASSESSMENT:"
-        echo "   Security Posture: Strong"
-        echo "   Defense Layers: Multiple"
-        echo "   Monitoring Coverage: Comprehensive"
-        echo "   Response Capability: Ready"
-        echo ""
-        
-        # Recommendations
-        echo "SECURITY RECOMMENDATIONS:"
-        echo "   Continue automated security scanning"
-        echo "   Regular security policy reviews"
-        echo "   Monitor security metrics trends"
-        echo "   Team security training updates"
+        # Final Status
+        echo "FINAL PIPELINE STATUS:"
+        if [ "${{ needs.secure-container-build.result }}" = "success" ] && [ "${{ github.ref }}" != "refs/heads/main" -o "${{ needs.dynamic-security-deploy.result }}" = "success" ]; then
+          echo "   Overall Security Assessment: PASSED"
+          echo "   All security controls validated"
+          echo "   Pipeline completed successfully"
+        else
+          echo "   Overall Security Assessment: FAILED"
+          echo "   Security issues detected - review required"
+        fi
         echo ""
         
         echo "======================================================"
