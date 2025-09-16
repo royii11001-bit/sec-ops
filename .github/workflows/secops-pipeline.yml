@@ -291,16 +291,16 @@ jobs:
 
     - name: Pull signed image
       run: |
-        IMAGE_TAG_SHORT="${{ github.ref_name }}-${GITHUB_SHA:0:7}"
-        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner:$IMAGE_TAG_SHORT"
+        
+        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner"
         echo "Pulling image: $FULL_IMAGE_NAME"
         docker pull $FULL_IMAGE_NAME
 
     - name: DAST - Dynamic Application Security Testing
       run: |
         # Get the latest tag from the current branch and commit
-        IMAGE_TAG_SHORT="${{ github.ref_name }}-${GITHUB_SHA:0:7}"
-        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner:$IMAGE_TAG_SHORT"
+        
+        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner"
         
         echo "Using image: $FULL_IMAGE_NAME"
         echo "Starting application for DAST..."
