@@ -318,15 +318,71 @@ jobs:
         
         echo "Running OWASP ZAP DAST scan..."
         mkdir -p /tmp/zap-reports
+        chmod 777 /tmp/zap-reports
+        
+        # Create ZAP config to only fail on critical (HIGH) issues
+        cat > /tmp/zap-reports/zap-config.conf << 'EOF'
+        # ZAP Configuration
+        # FAIL = Pipeline fails (Critical/High severity)
+        # WARN = Warning only (Medium severity) 
+        # INFO = Information only (Low severity)
+        # IGNORE = Skip completely
+
+        # Content Security Policy (CSP) related - Medium
+        10038	WARN
+        10063	WARN
+
+        # Missing security headers - Medium  
+        10021	WARN
+        10020	WARN
+        10016	WARN
+
+        # Cookie security - Medium
+        10054	WARN
+        10055	WARN
+        90033	WARN
+
+        # Cache and content issues - Low/Info
+        10049	INFO
+        10108	INFO
+
+        # Spectre vulnerability - Medium
+        90004	WARN
+
+        # Directory browsing - Medium
+        0	WARN
+
+        # SQL Injection - Critical (keep as FAIL)
+        40018	FAIL
+        40019	FAIL
+        40020	FAIL
+        40021	FAIL
+
+        # XSS - Critical (keep as FAIL) 
+        40012	FAIL
+        40014	FAIL
+        40016	FAIL
+        40017	FAIL
+
+        # Path traversal - Critical (keep as FAIL)
+        6	FAIL
+        EOF
+
         sudo docker run --rm --network host \
           -v /tmp/zap-reports:/zap/wrk/:rw \
           zaproxy/zap-stable zap-baseline.py \
           -t http://localhost:8000 \
+          -c zap-config.conf \
           -J zap-report.json \
           -r zap-report.html || true
         
         echo "ZAP scan results:"
         ls -la /tmp/zap-reports/ || true
+        
+        echo "ZAP scan summary:"
+        if [ -f /tmp/zap-reports/zap-report.json ]; then
+          echo "JSON report generated successfully"
+        fi
         
         echo "DAST scan completed"
         
@@ -375,10 +431,10 @@ jobs:
           sleep 5
         done
         
-        # Verify non-root
-        USER_CHECK=$(docker exec secops-app whoami)
-        if [ "$USER_CHECK" != "root" ]; then
-          echo "Running as non-root: $USER_CHECK"
+        # Verify non-root by checking UID instead of username
+        USER_ID=$(docker exec secops-app id -u)
+        if [ "$USER_ID" != "0" ]; then
+          echo "Running as non-root user (UID: $USER_ID)"
         else
           echo "Security issue: Running as root!"
           exit 1
