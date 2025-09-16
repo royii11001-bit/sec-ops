@@ -89,7 +89,11 @@ def search_dangerous_functions(base_dir):
 
 @app.get("/")
 def read_root():
-    return {"message": "GitHub Secrets Scanner API"}
+    return {"message": "GitHub Secrets Scanner API", "status": "healthy"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "secops-scanner"}
 
 
 @app.post("/scan/secrets")
