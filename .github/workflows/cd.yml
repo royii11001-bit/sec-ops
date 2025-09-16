@@ -1,8 +1,8 @@
-name: CD - Deploy with DAST
+name: SecOps CD - Secure Deployment Pipeline
 
 on:
   workflow_run:
-    workflows: ["CI - Security & Build"]
+    workflows: ["SecOps CI - Security Validation & Build"]
     types: [completed]
     branches: [main]
 
@@ -11,8 +11,8 @@ env:
   IMAGE_NAME: secops-github-scanner
 
 jobs:
-  dast-and-deploy:
-    name: DAST & Secure Deploy
+  dynamic-security-deploy:
+    name: Dynamic Security Testing & Secure Deployment
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: production
@@ -30,29 +30,29 @@ jobs:
     - name: Pull signed image
       run: |
         IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-        echo "📥 Pulling signed image: $IMAGE_TAG"
+        echo "Pulling signed image: $IMAGE_TAG"
         docker pull $IMAGE_TAG
 
     - name: DAST - Dynamic Application Security Testing
       run: |
         IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
         
-        echo "🚀 Starting application for DAST..."
+        echo "Starting application for DAST..."
         docker run -d --name dast-app -p 8080:8000 $IMAGE_TAG
         sleep 15
         
         # Quick health check
         curl -f http://localhost:8080/ || exit 1
-        echo "✅ Application is running"
+        echo "Application is running"
         
-        echo "🔍 Running OWASP ZAP DAST scan..."
+        echo "Running OWASP ZAP DAST scan..."
         docker run --rm --network host \
           owasp/zap2docker-stable zap-baseline.py \
           -t http://localhost:8080 \
           -J zap-report.json \
           -r zap-report.html || true
         
-        echo "✅ DAST scan completed"
+        echo "DAST scan completed"
         
         docker stop dast-app
         docker rm dast-app
@@ -61,7 +61,7 @@ jobs:
       run: |
         IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
         
-        echo "🚀 Deploying securely..."
+        echo "Deploying securely..."
         
         # Stop existing
         docker stop secops-app || true
@@ -81,27 +81,28 @@ jobs:
           -p 8000:8000 \
           $IMAGE_TAG
         
-        echo "✅ Deployed securely"
+        echo "Deployed securely"
 
     - name: Health Check
       run: |
-        echo "🏥 Post-deployment health check..."
+        echo "Post-deployment health check..."
         sleep 10
         
         for i in {1..5}; do
           if curl -f http://localhost:8000/; then
-            echo "✅ Application healthy"
+            echo "Application healthy"
             break
           fi
-          echo "⏳ Waiting... ($i/5)"
+          echo "Waiting... ($i/5)"
           sleep 5
         done
         
         # Verify non-root
         USER_CHECK=$(docker exec secops-app whoami)
         if [ "$USER_CHECK" != "root" ]; then
-          echo "✅ Running as non-root: $USER_CHECK"
+          echo "Running as non-root: $USER_CHECK"
         else
-          echo "❌ Security issue: Running as root!"
+          echo "Security issue: Running as root!"
           exit 1
         fi
+
