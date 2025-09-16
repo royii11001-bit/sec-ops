@@ -1,0 +1,117 @@
+name: CI - Security & Build
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: secops-github-scanner
+
+jobs:
+  # SAST - Static Application Security Testing
+  sast:
+    name: SAST - Code Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run CodeQL Analysis (SAST)
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+        queries: security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  # Container Build, Sign & Scan
+  build-sign-scan:
+    name: Build, Sign & Scan Container
+    runs-on: ubuntu-latest
+    needs: sast
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Install Cosign
+      uses: sigstore/cosign-installer@v3
+
+    - name: Log in to DockerHub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        load: ${{ github.event_name == 'pull_request' }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Image & Package Vulnerability Scan
+      run: |
+        echo "🔍 Scanning image for vulnerabilities..."
+        
+        # Run Trivy scan and show MEDIUM+ vulnerabilities
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy:latest image --severity MEDIUM,HIGH,CRITICAL \
+          ${{ steps.meta.outputs.tags }}
+        
+        # Check for CRITICAL vulnerabilities and block if found
+        CRITICAL=$(docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy:latest image --severity CRITICAL --quiet --format json \
+          ${{ steps.meta.outputs.tags }} | \
+          jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length')
+        
+        echo ""
+        echo "🔍 Critical vulnerabilities found: $CRITICAL"
+        
+        if [ "$CRITICAL" -gt 0 ]; then
+          echo "❌ CRITICAL vulnerabilities detected - Build blocked!"
+          exit 1
+        fi
+        
+        echo "✅ No critical vulnerabilities - Build can proceed"
+
+    - name: Sign Container Image
+      if: github.ref == 'refs/heads/main'
+      env:
+        COSIGN_EXPERIMENTAL: 1
+      run: |
+        echo "🔐 Signing image with Cosign..."
+        cosign sign --yes ${{ steps.meta.outputs.tags }}@${{ steps.build.outputs.digest }}
+        echo "✅ Image signed successfully"
