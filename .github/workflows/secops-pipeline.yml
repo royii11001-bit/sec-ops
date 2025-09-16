@@ -312,9 +312,12 @@ jobs:
           sleep 3
         done
         
+        echo "Pulling OWASP ZAP Docker image..."
+        sudo docker pull zaproxy/zap-stable
+        
         echo "Running OWASP ZAP DAST scan..."
-        docker run --rm --network host \
-          owasp/zap2docker-stable zap-baseline.py \
+        sudo docker run --rm --network host \
+          zaproxy/zap-stable zap-baseline.py \
           -t http://localhost:8000 \
           -J zap-report.json \
           -r zap-report.html || true
