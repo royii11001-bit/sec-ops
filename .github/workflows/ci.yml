@@ -10,6 +10,12 @@ env:
   REGISTRY: docker.io
   IMAGE_NAME: secops-github-scanner
 
+permissions:
+  actions: read
+  contents: read
+  workflow: read
+  security-events: write
+
 jobs:
   # SAST - Static Application Security Testing
   sast:
@@ -59,7 +65,14 @@ jobs:
       run: |
         echo "🔍 Generating vulnerability report for Docker image..."
         docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-          aquasec/trivy:latest image --severity MEDIUM,HIGH,CRITICAL local-image:latest
+          aquasec/trivy:latest image --severity MEDIUM,HIGH,CRITICAL --format json -o trivy-report.json local-image:latest
+        cat trivy-report.json
+
+    - name: Upload Trivy Report Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-vulnerability-report
+        path: trivy-report.json
 
   # Container Build, Sign & Scan
   build-sign-scan:
