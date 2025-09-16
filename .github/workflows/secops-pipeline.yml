@@ -273,7 +273,8 @@ jobs:
 
     - name: Pull signed image
       run: |
-        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+        IMAGE_TAG_SHORT="${{ github.ref_name }}-${GITHUB_SHA:0:7}"
+        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner:$IMAGE_TAG_SHORT"
         echo "Pulling image: $FULL_IMAGE_NAME"
         docker pull $FULL_IMAGE_NAME
 
@@ -329,9 +330,11 @@ jobs:
 
     - name: Deploy with Security Hardening
       run: |
-        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+        # Use the same dynamic image tag as DAST
+        IMAGE_TAG_SHORT="${{ github.ref_name }}-${GITHUB_SHA:0:7}"
+        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner:$IMAGE_TAG_SHORT"
         
-        echo "Deploying securely..."
+        echo "Deploying securely with image: $FULL_IMAGE_NAME"
         
         # Stop existing
         docker stop secops-app || true
