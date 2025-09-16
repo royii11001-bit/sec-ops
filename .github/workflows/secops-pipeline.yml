@@ -75,7 +75,7 @@ jobs:
         echo ""
         
         # Capture results for job output
-        semgrep_output=$(semgrep --config=auto . --quiet 2>/dev/null | tail -10 || echo "No Semgrep issues found")
+        semgrep_output=$(semgrep --config=auto . --quiet 2>/dev/null | tail -30 || echo "No Semgrep issues found")
         echo "results<<EOF" >> $GITHUB_OUTPUT
         echo "$semgrep_output" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
@@ -92,7 +92,7 @@ jobs:
         echo ""
         
         # Capture results for job output
-        safety_output=$(safety check --short-report 2>/dev/null | tail -10 || echo "No Safety vulnerabilities found")
+        safety_output=$(safety check --short-report 2>/dev/null | tail -34 || echo "No Safety vulnerabilities found")
         echo "results<<EOF" >> $GITHUB_OUTPUT
         echo "$safety_output" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
