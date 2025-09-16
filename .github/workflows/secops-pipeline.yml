@@ -282,17 +282,26 @@ jobs:
         FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
         
         echo "Starting application for DAST..."
-        docker run -d --name dast-app -p 8080:8000 $FULL_IMAGE_NAME
-        sleep 15
+        docker run -d --name dast-app -p 8000:8000 $FULL_IMAGE_NAME
+        sleep 20
         
-        # Quick health check
-        curl -f http://localhost:8080/ || exit 1
-        echo "Application is running"
+        # Quick health check with retries
+        for i in {1..10}; do
+          if curl -f http://localhost:8000/; then
+            echo "Application is running"
+            break
+          fi
+          echo "Waiting for app to start... ($i/10)"
+          sleep 3
+        done
+        
+        # Verify app is responding
+        curl -f http://localhost:8000/ || exit 1
         
         echo "Running OWASP ZAP DAST scan..."
         docker run --rm --network host \
           owasp/zap2docker-stable zap-baseline.py \
-          -t http://localhost:8080 \
+          -t http://localhost:8000 \
           -J zap-report.json \
           -r zap-report.html || true
         
