@@ -52,6 +52,11 @@ jobs:
         echo "============================="
         bandit -r . || true
         echo ""
+        
+        # Save summary for final report
+        echo "BANDIT_RESULTS<<EOF" >> $GITHUB_ENV
+        bandit -r . --format txt 2>/dev/null | tail -20 || echo "No Bandit issues found"
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Run Semgrep Security Scanner
       run: |
@@ -62,6 +67,11 @@ jobs:
         echo "=============================="
         semgrep --config=auto . || true
         echo ""
+        
+        # Save summary for final report
+        echo "SEMGREP_RESULTS<<EOF" >> $GITHUB_ENV
+        semgrep --config=auto . --quiet 2>/dev/null | tail -20 || echo "No Semgrep issues found"
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Run Safety Dependency Scanner
       run: |
@@ -72,6 +82,11 @@ jobs:
         echo "==============================="
         safety check || true
         echo ""
+        
+        # Save summary for final report
+        echo "SAFETY_RESULTS<<EOF" >> $GITHUB_ENV
+        safety check --short-report 2>/dev/null | tail -10 || echo "No Safety vulnerabilities found"
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Security Analysis Summary
       run: |
@@ -230,6 +245,12 @@ jobs:
         # Check for critical vulnerabilities only
         CRITICAL=$(cat /tmp/security-scan.json | jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length')
         
+        # Save vulnerability results for final report
+        echo "TRIVY_RESULTS<<EOF" >> $GITHUB_ENV
+        echo "Critical vulnerabilities found: $CRITICAL"
+        cat /tmp/security-scan.json | jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | "\(.VulnerabilityID): \(.PkgName) - \(.Title)"' | head -10 || echo "No critical vulnerabilities"
+        echo "EOF" >> $GITHUB_ENV
+        
         if [ "$CRITICAL" -gt 0 ]; then
           echo "SECURITY GATE FAILED: $CRITICAL critical vulnerabilities detected!"
           echo "Checking if util-linux vulnerability can be excluded..."
@@ -379,6 +400,17 @@ jobs:
         echo "ZAP scan results:"
         ls -la /tmp/zap-reports/ || true
         
+        # Save ZAP results for final report
+        echo "ZAP_RESULTS<<EOF" >> $GITHUB_ENV
+        if [ -f /tmp/zap-reports/zap-report.json ]; then
+          echo "ZAP scan completed - JSON report generated"
+          # Extract key findings from ZAP report
+          cat /tmp/zap-reports/zap-report.json | jq -r '.site[].alerts[]? | select(.riskcode != "0") | "\(.name) (Risk: \(.riskdesc))"' | head -10 2>/dev/null || echo "No high-risk ZAP findings"
+        else
+          echo "ZAP scan completed - no JSON report file found"
+        fi
+        echo "EOF" >> $GITHUB_ENV
+        
         echo "ZAP scan summary:"
         if [ -f /tmp/zap-reports/zap-report.json ]; then
           echo "JSON report generated successfully"
@@ -473,7 +505,18 @@ jobs:
         echo "   Bandit Scanner: Python security issues detection"
         echo "   Semgrep Scanner: Multi-language security patterns"
         echo "   Safety Scanner: Dependency vulnerability analysis"
-        echo "   Coverage: Code security + Dependencies"
+        echo ""
+        
+        echo "SAST FINDINGS SUMMARY:"
+        echo "----------------------"
+        echo "Bandit Results:"
+        echo "${BANDIT_RESULTS:-No Bandit results available}"
+        echo ""
+        echo "Semgrep Results:"
+        echo "${SEMGREP_RESULTS:-No Semgrep results available}"
+        echo ""
+        echo "Safety Results:"
+        echo "${SAFETY_RESULTS:-No Safety results available}"
         echo ""
         
         # Container Security
@@ -482,6 +525,11 @@ jobs:
         echo "   Severity Levels: CRITICAL, HIGH, MEDIUM, LOW"
         echo "   Security Gate: Critical vulnerability blocking enabled"
         echo "   Dynamic Tagging: Branch-commit SHA format"
+        echo ""
+        
+        echo "CONTAINER VULNERABILITY FINDINGS:"
+        echo "---------------------------------"
+        echo "${TRIVY_RESULTS:-No Trivy results available}"
         echo ""
         
         # Security Gates
@@ -509,6 +557,11 @@ jobs:
           echo "   Policy: Critical-only failures (SQL injection, XSS, path traversal)"
           echo "   Warnings: Medium severity (headers, cookies, CSP)"
           echo "   Runtime Security: Validated"
+          echo ""
+          
+          echo "DAST FINDINGS SUMMARY:"
+          echo "---------------------"
+          echo "${ZAP_RESULTS:-No ZAP results available}"
           echo ""
           
           # Deployment Security
