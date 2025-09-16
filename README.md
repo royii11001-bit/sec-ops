@@ -1,4 +1,4 @@
-# SecOps CI/CD Pipeline
+[# SecOps CI/CD Pipeline
 
 A security-first CI/CD implementation demonstrating end-to-end DevSecOps practices with the "Shift Left" approach.
 
@@ -102,3 +102,5 @@ Configure branch protection to require PR reviews and status checks.
 - **[Threat Analysis](THREAT.md)** - Threat model and risk assessment
 
 This implementation demonstrates how security can be seamlessly integrated into modern development workflows while maintaining development velocity and operational reliability.
+
+](https://github.com/royii11001-bit/sec-ops)
