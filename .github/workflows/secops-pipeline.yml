@@ -51,10 +51,16 @@ jobs:
         bandit -r . || true
         echo ""
         
-        # Save summary for final report
+        # # Save summary for final report
+        # echo "BANDIT_RESULTS<<EOF" >> $GITHUB_ENV
+        # bandit -r . --format txt 2>/dev/null | tail -20 || echo "No Bandit issues found"
+        # echo "EOF" >> $GITHUB_ENV
+
+        bandit_output=$(bandit -r . --format txt 2>/dev/null || echo "No Bandit issues found")
         echo "BANDIT_RESULTS<<EOF" >> $GITHUB_ENV
-        bandit -r . --format txt 2>/dev/null | tail -20 || echo "No Bandit issues found"
+        echo "$bandit_output" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
+
 
     - name: Run Semgrep Security Scanner
       run: |
