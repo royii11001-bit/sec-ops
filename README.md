@@ -25,18 +25,24 @@ This systematic approach demonstrates shift-left security principles, ensuring v
 
 ## Pipeline Overview
 
-### CI Pipeline (ci.yml)
-1. CodeQL security scan
-2. Docker build with security hardening
-3. Trivy vulnerability scan (blocks on critical issues)
-4. Image signing with Cosign
-5. Push to DockerHub
+### Unified SecOps Pipeline (secops-pipeline.yml)
+**CI Phase:**
+1. Static Application Security Testing (SAST) with Bandit, Semgrep, Safety
+2. Container vulnerability scanning with Trivy
+3. Security gates (blocks on critical vulnerabilities, allows util-linux CVE)
+4. Docker build with security hardening
+5. Push to DockerHub with dynamic tagging
 
-### CD Pipeline (cd.yml) 
-1. Pull signed image from DockerHub
-2. OWASP ZAP dynamic security testing
-3. Secure container deployment
-4. Health verification
+**CD Phase (main branch only):**
+1. Pull latest tagged image from DockerHub
+2. Dynamic Application Security Testing (DAST) with OWASP ZAP
+3. Secure container deployment with runtime hardening
+4. Health verification and security compliance checks
+
+**Reporting Phase:**
+1. CI Security Assessment Report
+2. CD Deployment Security Report  
+3. Final Security Summary
 
 ## Quick Start
 
@@ -83,10 +89,12 @@ Configure branch protection to require PR reviews and status checks.
 
 ## Technology Stack
 
-- **Application**: Python FastAPI
-- **Security**: CodeQL, Trivy, OWASP ZAP, Cosign
-- **Platform**: Docker, GitHub Actions, DockerHub
-- **Deployment**: Secure container with runtime hardening
+- **Application**: Python FastAPI with GitPython for repository scanning
+- **SAST Tools**: Bandit (Python security), Semgrep (multi-language), Safety (dependencies)
+- **Container Security**: Trivy vulnerability scanner with intelligent security gates
+- **DAST Tools**: OWASP ZAP with custom severity configuration
+- **Platform**: Docker, GitHub Actions, DockerHub with dynamic tagging
+- **Deployment**: Secure container with runtime hardening (non-root, read-only, minimal capabilities)
 
 ## Additional Documentation
 
