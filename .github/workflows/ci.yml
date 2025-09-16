@@ -13,7 +13,6 @@ env:
 permissions:
   actions: read
   contents: read
-  workflow: read
   security-events: write
 
 jobs:
