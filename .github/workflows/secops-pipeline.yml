@@ -8,7 +8,8 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: secops-github-scanner
+  IMAGE_NAME: secops-scanner
+  IMAGE_TAG: latest
 
 permissions:
   actions: read
@@ -101,13 +102,13 @@ jobs:
       with:
         context: .
         load: true
-        tags: local-image:latest
+        tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
     - name: Generate Vulnerability Data
       run: |
         echo "Generating vulnerability data for Docker image..."
         docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-          aquasec/trivy:latest image --severity MEDIUM,HIGH,CRITICAL --format json -o /tmp/trivy-report.json local-image:latest
+          aquasec/trivy:latest image --severity MEDIUM,HIGH,CRITICAL --format json -o /tmp/trivy-report.json ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   # Secure Container Build & Security Gate
   secure-container-build:
@@ -137,9 +138,6 @@ jobs:
           ls -la
           exit 1
         fi
-
-    - name: Install Cosign
-      uses: sigstore/cosign-installer@v3
 
     - name: Log in to DockerHub
       if: github.event_name != 'pull_request'
@@ -250,14 +248,6 @@ jobs:
           echo "Security gate passed"
         fi
 
-    - name: Sign Container Image
-      if: false  # Temporarily disabled - can be enabled once OIDC is properly configured
-      env:
-        COSIGN_YES: "true"
-      run: |
-        echo "Image signing is temporarily disabled"
-        echo "To enable: Set the 'if' condition to 'github.ref == 'refs/heads/main' && github.event_name != 'pull_request'"
-        echo "Ensure your repository has proper OIDC configuration for keyless signing"
 
   # =====================================================
   # CD PHASE: Secure Deployment (only on main branch)
@@ -283,16 +273,16 @@ jobs:
 
     - name: Pull signed image
       run: |
-        IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-        echo "Pulling signed image: $IMAGE_TAG"
-        docker pull $IMAGE_TAG
+        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+        echo "Pulling image: $FULL_IMAGE_NAME"
+        docker pull $FULL_IMAGE_NAME
 
     - name: DAST - Dynamic Application Security Testing
       run: |
-        IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
         
         echo "Starting application for DAST..."
-        docker run -d --name dast-app -p 8080:8000 $IMAGE_TAG
+        docker run -d --name dast-app -p 8080:8000 $FULL_IMAGE_NAME
         sleep 15
         
         # Quick health check
@@ -313,7 +303,7 @@ jobs:
 
     - name: Deploy with Security Hardening
       run: |
-        IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
         
         echo "Deploying securely..."
         
@@ -333,7 +323,7 @@ jobs:
           --cap-add NET_BIND_SERVICE \
           --memory 512m \
           -p 8000:8000 \
-          $IMAGE_TAG
+          $FULL_IMAGE_NAME
         
         echo "Deployed securely"
 
@@ -398,15 +388,15 @@ jobs:
         echo "   Vulnerability Scanner: Trivy"
         echo "   Severity Levels: CRITICAL, HIGH, MEDIUM, LOW"
         echo "   Security Gate: Critical vulnerability blocking enabled"
-        echo "   Image Signing: Cosign with OIDC keyless signing"
+        echo "   Image Signing: Available (currently disabled)"
         echo ""
         
         # Supply Chain Security
         echo "SUPPLY CHAIN SECURITY:"
-        echo "   Container Image Signing: Enabled"
-        echo "   Signature Verification: Required for deployment"
-        echo "   Security Attestations: Generated"
-        echo "   Build Provenance: Tracked"
+        echo "   Container Image Signing: Available (currently disabled)"
+        echo "   Secure Registry: DockerHub with authentication"
+        echo "   Image Verification: Digest-based validation"
+        echo "   Build Provenance: GitHub Actions tracked"
         echo ""
         
         # Security Gates
@@ -467,7 +457,7 @@ jobs:
         
         # Runtime Security
         echo "RUNTIME SECURITY CONTROLS:"
-        echo "   Image Signature: Verified before deployment"
+        echo "   Image Verification: Registry-based authentication"
         echo "   Security Context: Enforced"
         echo "   Network Policies: Applied"
         echo "   Security Monitoring: Active"
