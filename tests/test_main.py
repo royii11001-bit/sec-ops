@@ -1,6 +1,3 @@
-#python3 test_main.py --github-url="https://github.com/facebook/react"
-
-
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -133,4 +130,5 @@ class TestErrorHandling:
 
 # Run tests with coverage
 if __name__ == "__main__":
+
     pytest.main(["-v", "--tb=short"])
