@@ -26,6 +26,10 @@ jobs:
   static-security-analysis:
     name: "CI: Static Security Analysis (SAST)"
     runs-on: ubuntu-latest
+    outputs:
+      bandit-results: ${{ steps.bandit.outputs.results }}
+      semgrep-results: ${{ steps.semgrep.outputs.results }}
+      safety-results: ${{ steps.safety.outputs.results }}
     
     steps:
     - name: Checkout code
@@ -42,6 +46,7 @@ jobs:
         pip install bandit[toml] semgrep safety
 
     - name: Run Bandit Security Scanner
+      id: bandit
       run: |
         echo "Running Bandit security analysis..."
         bandit -r . -f json -o bandit-report.json || true
@@ -51,18 +56,13 @@ jobs:
         bandit -r . || true
         echo ""
         
-        # # Save summary for final report
-        # echo "BANDIT_RESULTS<<EOF" >> $GITHUB_ENV
-        # bandit -r . --format txt 2>/dev/null | tail -20 || echo "No Bandit issues found"
-        # echo "EOF" >> $GITHUB_ENV
-
-        bandit_output=$(bandit -r . --format txt 2>/dev/null || echo "No Bandit issues found")
-        echo "BANDIT_RESULTS<<EOF" >> $GITHUB_ENV
-        echo "$bandit_output" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
+        # Capture results for job output
+        bandit_output=$(bandit -r . --format txt 2>/dev/null | tail -10 || echo "No Bandit issues found")
+        echo "results=$bandit_output" >> $GITHUB_OUTPUT
 
 
     - name: Run Semgrep Security Scanner
+      id: semgrep
       run: |
         echo "Running Semgrep security analysis..."
         semgrep --config=auto --json --output=semgrep-report.json . || true
@@ -72,12 +72,12 @@ jobs:
         semgrep --config=auto . || true
         echo ""
         
-        # Save summary for final report
-        echo "SEMGREP_RESULTS<<EOF" >> $GITHUB_ENV
-        semgrep --config=auto . --quiet 2>/dev/null | tail -20 || echo "No Semgrep issues found"
-        echo "EOF" >> $GITHUB_ENV
+        # Capture results for job output
+        semgrep_output=$(semgrep --config=auto . --quiet 2>/dev/null | tail -10 || echo "No Semgrep issues found")
+        echo "results=$semgrep_output" >> $GITHUB_OUTPUT
 
     - name: Run Safety Dependency Scanner
+      id: safety
       run: |
         echo "Running Safety dependency vulnerability scan..."
         safety check --json --output safety-report.json || true
@@ -87,10 +87,9 @@ jobs:
         safety check || true
         echo ""
         
-        # Save summary for final report
-        echo "SAFETY_RESULTS<<EOF" >> $GITHUB_ENV
-        safety check --short-report 2>/dev/null | tail -10 || echo "No Safety vulnerabilities found"
-        echo "EOF" >> $GITHUB_ENV
+        # Capture results for job output
+        safety_output=$(safety check --short-report 2>/dev/null | tail -10 || echo "No Safety vulnerabilities found")
+        echo "results=$safety_output" >> $GITHUB_OUTPUT
 
     - name: Security Analysis Summary
       run: |
@@ -137,6 +136,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
+      trivy-results: ${{ steps.security-gate.outputs.trivy-results }}
     
     steps:
     - name: Checkout code
@@ -188,6 +188,7 @@ jobs:
 
 
     - name: Security Gate - Critical Check
+      id: security-gate
       run: |
         echo "Running security gate..."
         echo "Build step result: ${{ steps.build.outcome }}"
@@ -249,11 +250,13 @@ jobs:
         # Check for critical vulnerabilities only
         CRITICAL=$(cat /tmp/security-scan.json | jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length')
         
-        # Save vulnerability results for final report
-        echo "TRIVY_RESULTS<<EOF" >> $GITHUB_ENV
-        echo "Critical vulnerabilities found: $CRITICAL"
-        cat /tmp/security-scan.json | jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | "\(.VulnerabilityID): \(.PkgName) - \(.Title)"' | head -10 || echo "No critical vulnerabilities"
-        echo "EOF" >> $GITHUB_ENV
+        # Save vulnerability results for job output
+        trivy_summary="Critical vulnerabilities found: $CRITICAL"
+        if [ "$CRITICAL" -gt 0 ]; then
+          trivy_details=$(cat /tmp/security-scan.json | jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | "\(.VulnerabilityID): \(.PkgName) - \(.Title)"' | head -5 || echo "")
+          trivy_summary="$trivy_summary\n$trivy_details"
+        fi
+        echo "trivy-results=$trivy_summary" >> $GITHUB_OUTPUT
         
         if [ "$CRITICAL" -gt 0 ]; then
           echo "SECURITY GATE FAILED: $CRITICAL critical vulnerabilities detected!"
@@ -284,6 +287,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [secure-container-build]
     environment: production
+    outputs:
+      zap-results: ${{ steps.dast.outputs.zap-results }}
     
     steps:
     - name: Checkout code
@@ -303,6 +308,7 @@ jobs:
         docker pull $FULL_IMAGE_NAME
 
     - name: DAST - Dynamic Application Security Testing
+      id: dast
       run: |
         # Get the latest tag from the current branch and commit
         
@@ -402,16 +408,15 @@ jobs:
         echo "ZAP scan results:"
         ls -la /tmp/zap-reports/ || true
         
-        # Save ZAP results for final report
-        echo "ZAP_RESULTS<<EOF" >> $GITHUB_ENV
+        # Save ZAP results for job output
         if [ -f /tmp/zap-reports/zap-report.json ]; then
-          echo "ZAP scan completed - JSON report generated"
-          # Extract key findings from ZAP report
-          cat /tmp/zap-reports/zap-report.json | jq -r '.site[].alerts[]? | select(.riskcode != "0") | "\(.name) (Risk: \(.riskdesc))"' | head -10 2>/dev/null || echo "No high-risk ZAP findings"
+          zap_summary="ZAP scan completed - JSON report generated"
+          zap_findings=$(cat /tmp/zap-reports/zap-report.json | jq -r '.site[].alerts[]? | select(.riskcode != "0") | "\(.name) (Risk: \(.riskdesc))"' | head -5 2>/dev/null || echo "No high-risk ZAP findings")
+          zap_output="$zap_summary\n$zap_findings"
         else
-          echo "ZAP scan completed - no JSON report file found"
+          zap_output="ZAP scan completed - no JSON report file found"
         fi
-        echo "EOF" >> $GITHUB_ENV
+        echo "zap-results=$zap_output" >> $GITHUB_OUTPUT
         
         echo "ZAP scan summary:"
         if [ -f /tmp/zap-reports/zap-report.json ]; then
@@ -506,13 +511,13 @@ jobs:
         echo "SAST FINDINGS SUMMARY:"
         echo "----------------------"
         echo "Bandit Results:"
-        echo "${BANDIT_RESULTS:-No Bandit results available}"
+        echo "${{ needs.static-security-analysis.outputs.bandit-results }}"
         echo ""
         echo "Semgrep Results:"
-        echo "${SEMGREP_RESULTS:-No Semgrep results available}"
+        echo "${{ needs.static-security-analysis.outputs.semgrep-results }}"
         echo ""
         echo "Safety Results:"
-        echo "${SAFETY_RESULTS:-No Safety results available}"
+        echo "${{ needs.static-security-analysis.outputs.safety-results }}"
         echo ""
         
         # Container Security
@@ -525,7 +530,7 @@ jobs:
         
         echo "CONTAINER VULNERABILITY FINDINGS:"
         echo "---------------------------------"
-        echo "${TRIVY_RESULTS:-No Trivy results available}"
+        echo "${{ needs.secure-container-build.outputs.trivy-results }}"
         echo ""
         
         # Security Gates
@@ -557,7 +562,7 @@ jobs:
           
           echo "DAST FINDINGS SUMMARY:"
           echo "---------------------"
-          echo "${ZAP_RESULTS:-No ZAP results available}"
+          echo "${{ needs.dynamic-security-deploy.outputs.zap-results }}"
           echo ""
           
           # Deployment Security
