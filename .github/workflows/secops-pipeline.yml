@@ -3,8 +3,6 @@ name: SecOps - Complete Security Pipeline
 on:
   pull_request:
     branches: [ main ]
-  push:
-    branches: [ main ]
 
 env:
   REGISTRY: docker.io
@@ -279,7 +277,7 @@ jobs:
     name: "CD: Dynamic Security & Deployment"
     runs-on: ubuntu-latest
     needs: [secure-container-build]
-    if: github.ref == 'refs/heads/main'
+    if: github.event.pull_request.merged == true
     environment: production
     
     steps:
@@ -545,8 +543,8 @@ jobs:
         fi
         echo ""
         
-        # CD Report (only for main branch)
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+        # CD Report (only for merged PRs)
+        if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
           echo "======================================================"
           echo "       CD DEPLOYMENT SECURITY REPORT"
           echo "======================================================"
@@ -598,7 +596,7 @@ jobs:
         echo "   2. Container Scanning -> Image Security" 
         echo "   3. Security Gates -> Quality Control"
         echo "   4. Secure Build -> Hardened Artifacts"
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+        if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
           echo "   5. Dynamic Testing (DAST) -> Runtime Security"
           echo "   6. Secure Deployment -> Production Ready"
         fi
@@ -615,7 +613,7 @@ jobs:
         
         # Final Status
         echo "FINAL PIPELINE STATUS:"
-        if [ "${{ needs.secure-container-build.result }}" = "success" ] && [ "${{ github.ref }}" != "refs/heads/main" -o "${{ needs.dynamic-security-deploy.result }}" = "success" ]; then
+        if [ "${{ needs.secure-container-build.result }}" = "success" ] && [ "${{ github.event.pull_request.merged }}" != "true" -o "${{ needs.dynamic-security-deploy.result }}" = "success" ]; then
           echo "   Overall Security Assessment: PASSED"
           echo "   All security controls validated"
           echo "   Pipeline completed successfully"
