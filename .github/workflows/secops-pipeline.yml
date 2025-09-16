@@ -317,11 +317,16 @@ jobs:
         sudo docker pull zaproxy/zap-stable
         
         echo "Running OWASP ZAP DAST scan..."
+        mkdir -p /tmp/zap-reports
         sudo docker run --rm --network host \
+          -v /tmp/zap-reports:/zap/wrk/:rw \
           zaproxy/zap-stable zap-baseline.py \
           -t http://localhost:8000 \
           -J zap-report.json \
           -r zap-report.html || true
+        
+        echo "ZAP scan results:"
+        ls -la /tmp/zap-reports/ || true
         
         echo "DAST scan completed"
         
