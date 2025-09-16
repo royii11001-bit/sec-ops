@@ -29,7 +29,7 @@ This systematic approach demonstrates shift-left security principles, ensuring v
 **CI Phase:**
 1. Static Application Security Testing (SAST) with Bandit, Semgrep, Safety
 2. Container vulnerability scanning with Trivy
-3. Security gates (blocks on critical vulnerabilities, allows util-linux CVE)
+3. Security gates (blocks on critical vulnerabilities)
 4. Docker build with security hardening
 5. Push to DockerHub with dynamic tagging
 
@@ -102,3 +102,4 @@ Configure branch protection to require PR reviews and status checks.
 - **[Threat Analysis](THREAT.md)** - Threat model and risk assessment
 
 This implementation demonstrates how security can be seamlessly integrated into modern development workflows while maintaining development velocity and operational reliability.
+
