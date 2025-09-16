@@ -322,51 +322,51 @@ jobs:
         
         # Create ZAP config to only fail on critical (HIGH) issues
         cat > /tmp/zap-reports/zap-config.conf << 'EOF'
-# ZAP Configuration - Format: ID	LEVEL	NAME
-# FAIL = Pipeline fails (Critical/High severity)
-# WARN = Warning only (Medium severity) 
-# INFO = Information only (Low severity)
-# IGNORE = Skip completely
+        # ZAP Configuration - Format: ID	LEVEL	NAME
+        # FAIL = Pipeline fails (Critical/High severity)
+        # WARN = Warning only (Medium severity) 
+        # INFO = Information only (Low severity)
+        # IGNORE = Skip completely
 
-# Content Security Policy (CSP) related - Medium
-10038	WARN	Content Security Policy (CSP) Header Not Set
-10063	WARN	Feature Policy Header Not Set
+        # Content Security Policy (CSP) related - Medium
+        10038	WARN	Content Security Policy (CSP) Header Not Set
+        10063	WARN	Feature Policy Header Not Set
 
-# Missing security headers - Medium  
-10021	WARN	X-Content-Type-Options Header Missing
-10020	WARN	X-Frame-Options Header Not Set
-10016	WARN	Web Browser XSS Protection Not Enabled
+        # Missing security headers - Medium  
+        10021	WARN	X-Content-Type-Options Header Missing
+        10020	WARN	X-Frame-Options Header Not Set
+        10016	WARN	Web Browser XSS Protection Not Enabled
 
-# Cookie security - Medium
-10054	WARN	Cookie Without SameSite Attribute
-10055	WARN	Cookie Without Secure Flag
-90033	WARN	Loosely Scoped Cookie
+        # Cookie security - Medium
+        10054	WARN	Cookie Without SameSite Attribute
+        10055	WARN	Cookie Without Secure Flag
+        90033	WARN	Loosely Scoped Cookie
 
-# Cache and content issues - Low/Info
-10049	INFO	Storable and Cacheable Content
-10108	INFO	Reverse Tabnabbing
+        # Cache and content issues - Low/Info
+        10049	INFO	Storable and Cacheable Content
+        10108	INFO	Reverse Tabnabbing
 
-# Spectre vulnerability - Medium
-90004	WARN	Insufficient Site Isolation Against Spectre Vulnerability
+        # Spectre vulnerability - Medium
+        90004	WARN	Insufficient Site Isolation Against Spectre Vulnerability
 
-# Directory browsing - Medium
-0	WARN	Directory Browsing
+        # Directory browsing - Medium
+        0	WARN	Directory Browsing
 
-# SQL Injection - Critical (keep as FAIL)
-40018	FAIL	SQL Injection
-40019	FAIL	SQL Injection - MySQL
-40020	FAIL	SQL Injection - PostgreSQL
-40021	FAIL	SQL Injection - Oracle
+        # SQL Injection - Critical (keep as FAIL)
+        40018	FAIL	SQL Injection
+        40019	FAIL	SQL Injection - MySQL
+        40020	FAIL	SQL Injection - PostgreSQL
+        40021	FAIL	SQL Injection - Oracle
 
-# XSS - Critical (keep as FAIL) 
-40012	FAIL	Cross Site Scripting (Reflected)
-40014	FAIL	Cross Site Scripting (Persistent)
-40016	FAIL	Cross Site Scripting (Persistent) - Prime
-40017	FAIL	Cross Site Scripting (Persistent) - Spider
+        # XSS - Critical (keep as FAIL) 
+        40012	FAIL	Cross Site Scripting (Reflected)
+        40014	FAIL	Cross Site Scripting (Persistent)
+        40016	FAIL	Cross Site Scripting (Persistent) - Prime
+        40017	FAIL	Cross Site Scripting (Persistent) - Spider
 
-# Path traversal - Critical (keep as FAIL)
-6	FAIL	Path Traversal
-EOF
+        # Path traversal - Critical (keep as FAIL)
+        6	FAIL	Path Traversal
+        EOF
 
         sudo docker run --rm --network host \
           -v /tmp/zap-reports:/zap/wrk/:rw \
