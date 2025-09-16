@@ -301,7 +301,6 @@ jobs:
         # Get the latest tag from the current branch and commit
         
         FULL_IMAGE_NAME="royi11001bit/secops-github-scanner"
-        
         echo "Using image: $FULL_IMAGE_NAME"
         echo "Starting application for DAST..."
         docker run -d --name dast-app -p 8000:8000 $FULL_IMAGE_NAME
@@ -425,11 +424,6 @@ jobs:
         
         echo "Deploying securely with image: $FULL_IMAGE_NAME"
         
-        # Stop existing
-        docker stop secops-app || true
-        docker rm secops-app || true
-        
-        # Deploy with security best practices
         docker run -d \
           --name secops-app \
           --restart unless-stopped \
