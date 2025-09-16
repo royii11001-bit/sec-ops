@@ -421,8 +421,7 @@ jobs:
     - name: Deploy with Security Hardening
       run: |
         # Use the same dynamic image tag as DAST
-        IMAGE_TAG_SHORT="${{ github.ref_name }}-${GITHUB_SHA:0:7}"
-        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner:$IMAGE_TAG_SHORT"
+        FULL_IMAGE_NAME="royi11001bit/secops-github-scanner"
         
         echo "Deploying securely with image: $FULL_IMAGE_NAME"
         
