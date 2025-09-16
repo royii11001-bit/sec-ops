@@ -58,7 +58,9 @@ jobs:
         
         # Capture results for job output
         bandit_output=$(bandit -r . --format txt 2>/dev/null | tail -10 || echo "No Bandit issues found")
-        echo "results=$bandit_output" >> $GITHUB_OUTPUT
+        echo "results<<EOF" >> $GITHUB_OUTPUT
+        echo "$bandit_output" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
 
     - name: Run Semgrep Security Scanner
@@ -74,7 +76,9 @@ jobs:
         
         # Capture results for job output
         semgrep_output=$(semgrep --config=auto . --quiet 2>/dev/null | tail -10 || echo "No Semgrep issues found")
-        echo "results=$semgrep_output" >> $GITHUB_OUTPUT
+        echo "results<<EOF" >> $GITHUB_OUTPUT
+        echo "$semgrep_output" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Run Safety Dependency Scanner
       id: safety
@@ -89,7 +93,9 @@ jobs:
         
         # Capture results for job output
         safety_output=$(safety check --short-report 2>/dev/null | tail -10 || echo "No Safety vulnerabilities found")
-        echo "results=$safety_output" >> $GITHUB_OUTPUT
+        echo "results<<EOF" >> $GITHUB_OUTPUT
+        echo "$safety_output" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Security Analysis Summary
       run: |
@@ -251,12 +257,12 @@ jobs:
         CRITICAL=$(cat /tmp/security-scan.json | jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length')
         
         # Save vulnerability results for job output
-        trivy_summary="Critical vulnerabilities found: $CRITICAL"
+        echo "trivy-results<<EOF" >> $GITHUB_OUTPUT
+        echo "Critical vulnerabilities found: $CRITICAL"
         if [ "$CRITICAL" -gt 0 ]; then
-          trivy_details=$(cat /tmp/security-scan.json | jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | "\(.VulnerabilityID): \(.PkgName) - \(.Title)"' | head -5 || echo "")
-          trivy_summary="$trivy_summary\n$trivy_details"
+          cat /tmp/security-scan.json | jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | "\(.VulnerabilityID): \(.PkgName) - \(.Title)"' | head -5 || echo "No details available"
         fi
-        echo "trivy-results=$trivy_summary" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
         
         if [ "$CRITICAL" -gt 0 ]; then
           echo "SECURITY GATE FAILED: $CRITICAL critical vulnerabilities detected!"
@@ -409,14 +415,14 @@ jobs:
         ls -la /tmp/zap-reports/ || true
         
         # Save ZAP results for job output
+        echo "zap-results<<EOF" >> $GITHUB_OUTPUT
         if [ -f /tmp/zap-reports/zap-report.json ]; then
-          zap_summary="ZAP scan completed - JSON report generated"
-          zap_findings=$(cat /tmp/zap-reports/zap-report.json | jq -r '.site[].alerts[]? | select(.riskcode != "0") | "\(.name) (Risk: \(.riskdesc))"' | head -5 2>/dev/null || echo "No high-risk ZAP findings")
-          zap_output="$zap_summary\n$zap_findings"
+          echo "ZAP scan completed - JSON report generated"
+          cat /tmp/zap-reports/zap-report.json | jq -r '.site[].alerts[]? | select(.riskcode != "0") | "\(.name) (Risk: \(.riskdesc))"' | head -5 2>/dev/null || echo "No high-risk ZAP findings"
         else
-          zap_output="ZAP scan completed - no JSON report file found"
+          echo "ZAP scan completed - no JSON report file found"
         fi
-        echo "zap-results=$zap_output" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
         
         echo "ZAP scan summary:"
         if [ -f /tmp/zap-reports/zap-report.json ]; then
