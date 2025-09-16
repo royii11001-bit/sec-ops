@@ -5,18 +5,21 @@ This document details the security controls implemented in the SecOps CI/CD pipe
 ## Shift Left Security Approach
 
 ### Development Stage (SAST)
-- GitHub CodeQL analyzes Python code for vulnerabilities
+- **Bandit** analyzes Python code for security issues and vulnerabilities
+- **Semgrep** provides multi-language security pattern detection
+- **Safety** scans Python dependencies for known vulnerabilities
 - Catches security issues before they reach the build stage
-- Integrated into developer workflow through pull request checks
 
 ### Build Stage (Container Security)
-- Trivy scans images and dependencies for known vulnerabilities
-- Critical vulnerabilities block the pipeline
-- Cosign signs images for supply chain integrity
+- **Trivy** scans images and dependencies for known vulnerabilities
+- **Intelligent security gates** block critical vulnerabilities (with util-linux CVE exception)
+- Dynamic image tagging with branch and commit SHA
+- Secure container hardening during build
 
 ### Pre-Deployment Stage (DAST)
-- OWASP ZAP tests the running application
-- Validates security controls in a live environment
+- **OWASP ZAP** with custom severity configuration tests the running application
+- **Critical-only failure policy** - only SQL injection, XSS, and path traversal fail pipeline
+- **Medium severity warnings** for security headers, cookies, and CSP issues
 - Tests for runtime vulnerabilities that static analysis cannot detect
 
 ### Deployment Stage (Runtime Security)
@@ -32,16 +35,16 @@ This document details the security controls implemented in the SecOps CI/CD pipe
 ## Security Controls Summary
 
 ### Code-Level Security
-- **SAST**: GitHub CodeQL for vulnerability detection
-- **Dependencies**: Trivy scanning with critical vulnerability blocking
-- **Secrets**: GitHub secret scanning integration
-- **Quality gates**: Automated blocking of unsafe code
+- **SAST**: Multi-tool approach with Bandit, Semgrep, and Safety
+- **Dependencies**: Trivy scanning with intelligent critical vulnerability blocking
+- **Secrets**: Built-in application secret pattern detection
+- **Quality gates**: Automated blocking of unsafe code with smart exceptions
 
 ### Container Security
 - **Base images**: Minimal python:3.11-slim to reduce attack surface
 - **Scanning**: Pre-push vulnerability detection with Trivy
-- **Signing**: Cosign for supply chain integrity
-- **Execution**: Non-root user with dropped capabilities
+- **Dynamic tagging**: Branch-commit SHA format for precise image tracking
+- **Execution**: Non-root user (UID 1000) with dropped capabilities
 
 ### Runtime Security
 - **Filesystem**: Read-only with temporary volumes
@@ -57,25 +60,30 @@ This document details the security controls implemented in the SecOps CI/CD pipe
 
 ## Security Tools
 
-**GitHub CodeQL (SAST)**
-- Native GitHub integration, no additional setup
-- Comprehensive Python vulnerability detection
-- Automated pull request security checks
+**Bandit (Python SAST)**
+- Specialized Python security vulnerability detection
+- Fast scanning with low false positives
+- Integrates seamlessly with CI/CD workflows
+
+**Semgrep (Multi-language SAST)**
+- Cross-language security pattern detection
+- Community rules with regular updates
+- Comprehensive coverage beyond Python
+
+**Safety (Dependency Scanner)**
+- Python dependency vulnerability detection
+- Database of known security issues
+- Prevents vulnerable package usage
 
 **Trivy (Container Scanning)**  
 - Fast, accurate vulnerability detection
 - Covers both OS and application dependencies
-- Free with regular database updates
+- Intelligent security gates with smart filtering
 
 **OWASP ZAP (DAST)**
-- Industry standard web application security testing
-- Complements static analysis with runtime testing
-- Configurable scan depth and reporting
-
-**Cosign (Image Signing)**
-- CNCF project with keyless signing
-- GitHub OIDC integration
-- Supply chain attack prevention
+- Industry standard web application security testing  
+- Custom severity configuration (Critical=FAIL, Medium=WARN)
+- Risk-based pipeline failure policy
 
 ## Key Security Metrics
 
